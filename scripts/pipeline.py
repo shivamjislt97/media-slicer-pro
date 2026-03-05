@@ -1,10 +1,14 @@
-import subprocess, os, math, getpass
+import subprocess, os, math, sys, getpass
 
 FFMPEG = r'C:\Projects\media-slicer-pro\tools\ffmpeg.exe'
 FFPROBE = r'C:\Projects\media-slicer-pro\tools\ffprobe.exe'
 INPUT_DIR = r'C:\Projects\media-slicer-pro\input'
 OUTPUT_DIR = r'C:\Projects\media-slicer-pro\output'
-SLICE_DURATION = 449
+
+SLICE_DURATION = int(sys.argv[1]) if len(sys.argv) > 1 else 449
+
+print(f'[INFO] Slice duration: {SLICE_DURATION} seconds')
+print()
 
 # ── Detect MEGAcmd ──────────────────────────────────────────
 MEGA_CMD = None
@@ -18,47 +22,46 @@ for path in [
         break
 
 if not MEGA_CMD:
-    print('[MEGA] MEGAcmd not found.')
-    print('[MEGA] Install from: https://mega.io/cmd')
-    print('[MEGA] Switching to Slice Only mode.')
-    MEGA_CMD = None
+    print('[MEGA] MEGAcmd not found. Switching to Slice Only mode.')
 else:
     print('[MEGA] MEGAcmd detected!')
-
-    # ── Check login status ──────────────────────────────────
     result = subprocess.run([MEGA_CMD, 'whoami'], capture_output=True, text=True)
-
     if result.returncode == 0:
-        print(f'[MEGA] Already logged in: {result.stdout.strip()}')
+        print(f'[MEGA] Logged in: {result.stdout.strip()}')
     else:
         print('[MEGA] Not logged in.')
-        print()
-        print('  Enter your MEGA credentials:')
         email = input('  Email   : ')
         password = getpass.getpass('  Password: ')
-        print()
-        print('[MEGA] Logging in...')
-
         login = subprocess.run([MEGA_CMD, 'login', email, password], capture_output=True, text=True)
-
         if login.returncode == 0:
             print('[MEGA] Login successful! ✅')
         else:
             print('[MEGA] Login failed. Switching to Slice Only mode.')
-            print(f'       Reason: {login.stderr.strip()}')
             MEGA_CMD = None
 
 print()
 
-# ── Process videos ──────────────────────────────────────────
-for f in os.listdir(INPUT_DIR):
-    if f == '.gitkeep':
-        continue
-    if not f.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm')):
-        continue
+# ── Collect videos sequentially ─────────────────────────────
+videos = sorted([
+    f for f in os.listdir(INPUT_DIR)
+    if f != '.gitkeep' and f.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm'))
+])
 
+if not videos:
+    print('[ERROR] No videos found in input\\ folder.')
+    input('Press Enter to exit...')
+    exit(1)
+
+print(f'[INFO] Found {len(videos)} video(s) - processing sequentially...')
+print()
+
+for idx, f in enumerate(videos, 1):
     video_path = os.path.join(INPUT_DIR, f)
     name = os.path.splitext(f)[0]
+
+    print(f'══════════════════════════════════════════════════════')
+    print(f'[{idx}/{len(videos)}] Processing: {f}')
+    print(f'══════════════════════════════════════════════════════')
 
     result = subprocess.run(
         [FFPROBE, '-v', 'error', '-show_entries', 'format=duration',
@@ -68,7 +71,7 @@ for f in os.listdir(INPUT_DIR):
     duration = float(result.stdout.strip())
     total_slices = math.ceil(duration / SLICE_DURATION)
 
-    print(f'[VIDEO] {name} | Duration: {int(duration)}s | Slices: {total_slices}')
+    print(f'[INFO] Duration: {int(duration)}s | Slices: {total_slices}')
 
     out_dir = os.path.join(OUTPUT_DIR, name)
     os.makedirs(out_dir, exist_ok=True)
@@ -92,19 +95,18 @@ for f in os.listdir(INPUT_DIR):
         ]
 
         print(f'[SLICE {part}/{total_slices}] start={start}s encoding...')
-        subprocess.run(cmd)
-        print(f'[OK] Slice {part} encoded')
+        subprocess.run(cmd, stderr=subprocess.DEVNULL)
+        print(f'[OK] Slice {part} encoded -> {os.path.basename(out_file)}')
 
         if MEGA_CMD:
             print(f'[MEGA] Uploading part {part}...')
-            r = subprocess.run(
-                [MEGA_CMD, 'put', out_file, mega_dest + '/'],
-                capture_output=True, text=True
-            )
+            r = subprocess.run([MEGA_CMD, 'put', out_file, mega_dest + '/'], capture_output=True, text=True)
             if r.returncode == 0:
                 print(f'[MEGA] Part {part} uploaded! ✅')
             else:
                 print(f'[MEGA] Upload failed: {r.stderr.strip()}')
 
-print()
+    print(f'[DONE] {f} -> {total_slices} slices complete')
+    print()
+
 print('[DONE] All videos processed!')
