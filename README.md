@@ -1,7 +1,7 @@
-# all-in-one-media-slicer
+# media-slicer-pro
 
 **Version:** v1.0.1  
-**Platform:** Windows (Personal PC)  
+**Platform:** Windows (PC & Server)  
 **Purpose:** Automated video slicing pipeline with optional MEGA cloud upload.
 
 ---
@@ -9,79 +9,142 @@
 ## Project Structure
 
 ```
-all-in-one-media-slicer\
+media-slicer-pro\
 ├── tools\
 │   ├── ffmpeg.exe          ← Place here manually
 │   └── ffprobe.exe         ← Place here manually
 ├── input\                  ← Drop your video files here
 ├── output\                 ← Sliced parts appear here (auto-created)
 ├── scripts\
-│   ├── slicer.bat          ← Slice only
-│   ├── mega_upload.bat     ← Upload only (standalone or called internally)
-│   └── pipeline.bat        ← ★ MAIN ENTRY POINT — Slice + Upload
+│   ├── slicer.py           ← ★ MAIN SLICER (Python - Recommended)
+│   ├── slicer.bat          ← Batch version (Windows)
+│   ├── mega_upload.bat     ← Upload only
+│   └── pipeline.bat        ← Slice + Upload combined
 └── README.md
 ```
 
 ---
 
-## Quick Start
+## Quick Start (Local PC)
 
 ### Step 1 — Add FFmpeg tools
 
-Download the FFmpeg Windows build from https://www.gyan.dev/ffmpeg/builds/  
+Download FFmpeg Windows build from https://www.gyan.dev/ffmpeg/builds/  
 Extract and copy **ffmpeg.exe** and **ffprobe.exe** into the `tools\` folder.
 
-### Step 2 — Add your video(s)
+### Step 2 — Install Python
+
+Download Python 3.12 from https://www.python.org/downloads/  
+During install: ✅ **Add Python to PATH** tick karo.
+
+### Step 3 — Add your video(s)
 
 Copy any supported video file(s) into the `input\` folder.
 
 **Supported formats:** `.mp4` `.mkv` `.avi` `.mov` `.wmv` `.flv` `.webm`
 
-### Step 3 — Run the pipeline
+### Step 4 — Run the slicer
 
-Double-click **`scripts\pipeline.bat`**
+```bash
+python scripts\slicer.py
+```
 
-That's it. No command-line knowledge required.
+---
+
+## Server Deployment (Windows VPS)
+
+### Step 1 — Git install karo
+
+```powershell
+winget install Git.Git --source winget
+```
+
+### Step 2 — Project clone karo
+
+```powershell
+cd C:\
+mkdir Projects
+cd Projects
+git clone https://github.com/shivamjislt97/media-slicer-pro.git
+cd media-slicer-pro
+```
+
+### Step 3 — Python install karo
+
+```powershell
+winget install Python.Python.3.12 --source winget
+```
+
+PowerShell band karke dobara kholo taaki PATH load ho.
+
+### Step 4 — FFmpeg download karo
+
+```powershell
+Invoke-WebRequest -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile "C:\ffmpeg.zip"
+Expand-Archive -Path "C:\ffmpeg.zip" -DestinationPath "C:\ffmpeg-temp"
+Copy-Item "C:\ffmpeg-temp\ffmpeg-*\bin\ffmpeg.exe" "C:\Projects\media-slicer-pro\tools\"
+Copy-Item "C:\ffmpeg-temp\ffmpeg-*\bin\ffprobe.exe" "C:\Projects\media-slicer-pro\tools\"
+Remove-Item -Path "C:\ffmpeg-temp" -Recurse -Force
+Remove-Item -Path "C:\ffmpeg.zip" -Force
+```
+
+### Step 5 — Video input folder mein daalo
+
+RDP se connect ho aur video copy karo:
+```
+C:\Projects\media-slicer-pro\input\
+```
+
+Ya PowerShell se copy karo:
+```powershell
+$src = "C:\path\to\your\video.mp4"
+$dst = "C:\Projects\media-slicer-pro\input\"
+Copy-Item -LiteralPath $src -Destination $dst
+```
+
+### Step 6 — Slicer chalao
+
+```powershell
+python "C:\Projects\media-slicer-pro\scripts\slicer.py"
+```
 
 ---
 
 ## What Happens
 
-1. The pipeline scans `input\` for all video files.
-2. Each video is sliced into **449-second parts**.
-3. The last slice is automatically shorter to match the remaining duration — no padding, no overflow.
-4. Output is saved to `output\<VideoName>\` with clean naming:
+1. Pipeline `input\` folder scan karta hai
+2. Har video ko **449-second parts** mein slice karta hai
+3. Last slice automatically shorter hota hai — no overflow, no padding
+4. Output `output\<VideoName>\` mein save hota hai:
 
 ```
 output\
-└── MyVideo\
-    ├── MyVideo_part_1.mp4
-    ├── MyVideo_part_2.mp4
-    ├── MyVideo_part_3.mp4
-    └── pipeline_log.txt
+└── myvideo\
+    ├── myvideo_part_1.mp4
+    ├── myvideo_part_2.mp4
+    ├── myvideo_part_3.mp4
+    └── myvideo_part_4.mp4   ← last slice auto-adjusted
 ```
-
-5. **If MEGAcmd is installed and you are logged in:** each slice is uploaded to MEGA immediately after encoding — no waiting for all slices to finish first.
 
 ---
 
 ## Encoding Specifications
 
-| Setting          | Value         |
-|------------------|---------------|
-| Video Codec      | libx264       |
-| CRF              | 18 (near-lossless) |
-| Preset           | slow          |
-| Pixel Format     | yuv420p       |
-| Audio Codec      | AAC           |
-| Audio Bitrate    | 128k          |
-| Timestamp Mode   | avoid_negative_ts make_zero |
-| Timestamp Reset  | reset_timestamps 1 |
-| Fast Start       | movflags +faststart |
+| Setting | Value |
+|---|---|
+| Video Codec | libx264 |
+| CRF | 18 (near-lossless) |
+| Preset | slow |
+| Pixel Format | yuv420p |
+| Audio Codec | AAC |
+| Audio Bitrate | 128k |
+| Timestamp Mode | avoid_negative_ts make_zero |
+| Timestamp Reset | reset_timestamps 1 |
+| Fast Start | movflags +faststart |
 
-- Resolution is **never changed** — output matches source exactly.
-- No frame drops or quality degradation.
-- No timestamp drift between slices.
+- Resolution **unchanged** — output matches source exactly
+- No frame drops or quality loss
+- No timestamp drift between slices
 
 ---
 
@@ -89,52 +152,53 @@ output\
 
 ### Requirements
 
-- Install **MEGAcmd** from: https://mega.io/cmd
-- Log in once via the MEGAcmd shell:
+- Install MEGAcmd from: https://mega.io/cmd
+- Login once via MEGAcmd shell:
 
 ```
 mega-login your@email.com yourpassword
 ```
 
-### Behavior
+### Run Pipeline (Slice + Upload)
 
-- The pipeline **auto-detects** MEGAcmd on your system (no config needed).
-- Starts the MEGAcmd server automatically if it is not running.
-- Creates a remote folder: `/all-in-one-media-slicer/<VideoName>/`
-- Uploads each slice right after it is encoded.
-- If MEGAcmd is not installed or you are not logged in, the upload step is **silently skipped** — slicing continues normally.
-
-### Standalone Upload
-
-To upload an already-sliced output folder without re-slicing:
-
-```
-Double-click: scripts\mega_upload.bat
+```powershell
+cmd /c "C:\Projects\media-slicer-pro\scripts\pipeline.bat"
 ```
 
-It will scan `output\` and upload all subfolders.
+Each slice uploads to MEGA immediately after encoding:
+```
+Slice 1 encoded → Upload → Slice 2 encoded → Upload → ...
+```
+
+Remote folder created automatically:
+```
+/media-slicer-pro/<VideoName>/
+```
 
 ---
 
-## Individual Scripts
+## Minimum Server Requirements
 
-| Script             | Purpose                                                  |
-|--------------------|----------------------------------------------------------|
-| `pipeline.bat`     | **Recommended.** Full slice + upload in one run.         |
-| `slicer.bat`       | Slice only. No MEGA interaction.                        |
-| `mega_upload.bat`  | Upload only. Scans `output\` and uploads everything.    |
+| Component | Minimum | Recommended |
+|---|---|---|
+| CPU | 2 Core | 4 Core |
+| RAM | 4 GB | 8 GB |
+| Storage | 40 GB | 80 GB+ |
+| OS | Windows Server 2019 | Windows Server 2022 |
+
+> Note: No GPU required — libx264 is CPU-only encoder.
 
 ---
 
 ## Troubleshooting
 
-| Symptom | Fix |
+| Problem | Fix |
 |---|---|
-| `ffmpeg.exe not found` | Place ffmpeg.exe and ffprobe.exe in the `tools\` folder |
-| `No video files found` | Make sure your video is in `input\` with a supported extension |
-| Slices have wrong duration | Check `pipeline_log.txt` inside the output subfolder |
-| MEGA upload skipped | Open MEGAcmd and run `mega-login email password` first |
-| Script closes instantly | Right-click → "Run as administrator" or check error message before it closes |
+| `ffmpeg.exe not found` | Place ffmpeg.exe in `tools\` folder |
+| `Python not found` | Restart terminal after Python install |
+| `No videos found` | Make sure video is in `input\` folder |
+| MEGA upload skipped | Run `mega-login email password` first |
+| Video not copying | Use `Copy-Item -LiteralPath` for special characters in filename |
 
 ---
 
@@ -142,32 +206,18 @@ It will scan `output\` and upload all subfolders.
 
 ### v1.0.1 *(current)*
 
-- **Rebuilt from scratch** for stability and reliability
-- Fixed: batch script crashing on double-click due to uninitialized variables
-- Fixed: last slice could overflow video duration — now auto-adjusts cleanly
-- Fixed: negative timestamp artifacts eliminated with `avoid_negative_ts make_zero`
-- Fixed: timestamp drift between slices fixed with `reset_timestamps 1`
-- Added: per-video output subfolders (prevents file collisions on multi-video runs)
-- Added: `pipeline_log.txt` written per video for debugging
-- Added: real-time slice-by-slice MEGA upload (no waiting for all slices)
-- Added: MEGAcmd auto-detection across all common install paths
-- Added: MEGAcmd server auto-start if not running
-- Added: login check before attempting any upload
-- Improved: clear progress output showing `[SLICE X/Y]` per video
-- Improved: `movflags +faststart` for better MP4 streaming compatibility
-- Code: all scripts use `setlocal EnableDelayedExpansion` correctly
+- **Added:** `slicer.py` — Python-based slicer, reliable on all Windows systems
+- **Fixed:** Batch script `for /f` issue with ffprobe output on Windows Server
+- **Fixed:** Last slice auto-adjustment for any video duration
+- **Fixed:** Special characters in filenames handled via `-LiteralPath`
+- **Fixed:** Large file (ffmpeg, videos) excluded from git via `.gitignore`
+- **Added:** Full server deployment guide in README
+- **Added:** Python install steps for VPS setup
+- **Tested:** Successfully tested on Windows Server 2025 VPS
+- **Tested:** 1450s video → 4 slices (449s + 449s + 449s + 103s) ✅
 
 ### v1.0.0
 
 - Initial release
-- Basic FFmpeg slicing
+- Basic FFmpeg slicing via batch scripts
 - Manual MEGA upload step
-
----
-
-## Notes
-
-- All tools are self-contained. No installers run from this project.
-- MEGAcmd must be installed system-wide by the user once.
-- FFmpeg must be placed in `tools\` by the user once.
-- After that, everything is fully automated by double-clicking `pipeline.bat`.
