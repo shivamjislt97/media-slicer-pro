@@ -2,3 +2,7 @@ tools/ffmpeg.exe
 tools/ffprobe.exe 
 tools/ffmpeg.exe 
 tools/ffprobe.exe 
+input/*.mp4 
+input/*.mkv 
+input/*.avi 
+input/*.mov 
