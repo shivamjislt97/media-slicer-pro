@@ -34,14 +34,14 @@ else:
         password = getpass.getpass('  Password: ')
         login = subprocess.run([MEGA_CMD, 'login', email, password], capture_output=True, text=True)
         if login.returncode == 0:
-            print('[MEGA] Login successful! ✅')
+            print('[MEGA] Login successful!')
         else:
             print('[MEGA] Login failed. Switching to Slice Only mode.')
             MEGA_CMD = None
 
 print()
 
-# ── Collect videos sequentially ─────────────────────────────
+# ── Collect videos ──────────────────────────────────────────
 videos = sorted([
     f for f in os.listdir(INPUT_DIR)
     if f != '.gitkeep' and f.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm'))
@@ -59,9 +59,9 @@ for idx, f in enumerate(videos, 1):
     video_path = os.path.join(INPUT_DIR, f)
     name = os.path.splitext(f)[0]
 
-    print(f'══════════════════════════════════════════════════════')
+    print(f'{"="*54}')
     print(f'[{idx}/{len(videos)}] Processing: {f}')
-    print(f'══════════════════════════════════════════════════════')
+    print(f'{"="*54}')
 
     result = subprocess.run(
         [FFPROBE, '-v', 'error', '-show_entries', 'format=duration',
@@ -72,6 +72,7 @@ for idx, f in enumerate(videos, 1):
     total_slices = math.ceil(duration / SLICE_DURATION)
 
     print(f'[INFO] Duration: {int(duration)}s | Slices: {total_slices}')
+    print(f'[INFO] Mode: Stream Copy (no quality loss, original FPS/resolution)')
 
     out_dir = os.path.join(OUTPUT_DIR, name)
     os.makedirs(out_dir, exist_ok=True)
@@ -88,25 +89,33 @@ for idx, f in enumerate(videos, 1):
         if part < total_slices:
             cmd += ['-t', str(SLICE_DURATION)]
         cmd += [
-            '-c:v', 'libx264', '-crf', '18', '-preset', 'slow',
-            '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k',
-            '-avoid_negative_ts', 'make_zero', '-reset_timestamps', '1',
-            '-movflags', '+faststart', '-y', out_file
+            '-c', 'copy',                    # no re-encoding - 100% original quality
+            '-avoid_negative_ts', 'make_zero',
+            '-reset_timestamps', '1',
+            '-movflags', '+faststart',
+            '-y', out_file
         ]
 
-        print(f'[SLICE {part}/{total_slices}] start={start}s encoding...')
-        subprocess.run(cmd, stderr=subprocess.DEVNULL)
-        print(f'[OK] Slice {part} encoded -> {os.path.basename(out_file)}')
+        print(f'\n[SLICE {part}/{total_slices}] start={start}s')
+        print(f'Output: {os.path.basename(out_file)}')
+        print('-' * 54)
+
+        subprocess.run(cmd)
+
+        print(f'[OK] Slice {part}/{total_slices} done!')
 
         if MEGA_CMD:
             print(f'[MEGA] Uploading part {part}...')
-            r = subprocess.run([MEGA_CMD, 'put', out_file, mega_dest + '/'], capture_output=True, text=True)
+            r = subprocess.run(
+                [MEGA_CMD, 'put', out_file, mega_dest + '/'],
+                capture_output=True, text=True
+            )
             if r.returncode == 0:
-                print(f'[MEGA] Part {part} uploaded! ✅')
+                print(f'[MEGA] Part {part} uploaded!')
             else:
                 print(f'[MEGA] Upload failed: {r.stderr.strip()}')
 
-    print(f'[DONE] {f} -> {total_slices} slices complete')
+    print(f'\n[DONE] {f} -> {total_slices} slices complete!')
     print()
 
 print('[DONE] All videos processed!')

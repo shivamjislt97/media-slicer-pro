@@ -5,7 +5,6 @@ INPUT_DIR = r'C:\Projects\media-slicer-pro\input'
 OUTPUT_DIR = r'C:\Projects\media-slicer-pro\output'
 
 def parse_time(t):
-    """Accept HH:MM:SS or seconds, return seconds as float"""
     t = t.strip()
     if ':' in t:
         parts = t.split(':')
@@ -16,7 +15,6 @@ def parse_time(t):
     return float(t)
 
 def seconds_to_ts(seconds):
-    """Convert seconds to HH-MM-SS string for filename"""
     h = int(seconds // 3600)
     m = int((seconds % 3600) // 60)
     s = int(seconds % 60)
@@ -48,7 +46,6 @@ if duration <= 0:
     input('Press Enter to exit...')
     exit(1)
 
-# Filename with timestamp
 start_ts = seconds_to_ts(start_sec)
 end_ts = seconds_to_ts(end_sec)
 out_filename = f'{name}_clip_{start_ts}_to_{end_ts}.mp4'
@@ -61,21 +58,25 @@ print(f'[TRIM] {filename}')
 print(f'[INFO] Start : {start_raw} ({start_sec}s)')
 print(f'[INFO] End   : {end_raw} ({end_sec}s)')
 print(f'[INFO] Length: {duration}s')
+print(f'[INFO] Mode  : Stream Copy (no quality loss)')
 print(f'[INFO] Output: {out_filename}')
 print()
 
 cmd = [
-    FFMPEG, '-ss', str(start_sec), '-i', video_path,
+    FFMPEG,
+    '-ss', str(start_sec),
+    '-i', video_path,
     '-t', str(duration),
-    '-c:v', 'libx264', '-crf', '18', '-preset', 'slow',
-    '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k',
-    '-avoid_negative_ts', 'make_zero', '-reset_timestamps', '1',
-    '-movflags', '+faststart', '-y', out_file
+    '-c', 'copy',                    # no re-encoding
+    '-avoid_negative_ts', 'make_zero',
+    '-reset_timestamps', '1',
+    '-movflags', '+faststart',
+    '-y', out_file
 ]
 
-subprocess.run(cmd, stderr=subprocess.DEVNULL)
+subprocess.run(cmd)
 
 if os.path.exists(out_file):
-    print(f'[OK] Clip saved: {out_file}')
+    print(f'\n[OK] Clip saved: {out_file}')
 else:
-    print('[ERROR] Trim failed. Check your input.')
+    print('[ERROR] Trim failed.')
