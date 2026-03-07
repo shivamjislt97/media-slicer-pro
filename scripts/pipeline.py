@@ -1,16 +1,17 @@
 import subprocess, os, math, sys, getpass
 
-FFMPEG = r'C:\Projects\media-slicer-pro\tools\ffmpeg.exe'
-FFPROBE = r'C:\Projects\media-slicer-pro\tools\ffprobe.exe'
-INPUT_DIR = r'C:\Projects\media-slicer-pro\input'
-OUTPUT_DIR = r'C:\Projects\media-slicer-pro\output'
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(SCRIPT_DIR)
+FFMPEG = os.path.join(ROOT, 'tools', 'ffmpeg.exe')
+FFPROBE = os.path.join(ROOT, 'tools', 'ffprobe.exe')
+INPUT_DIR = os.path.join(ROOT, 'input')
+OUTPUT_DIR = os.path.join(ROOT, 'output')
 
 SLICE_DURATION = int(sys.argv[1]) if len(sys.argv) > 1 else 449
 
 print(f'[INFO] Slice duration: {SLICE_DURATION} seconds')
 print()
 
-# ── Detect MEGAcmd ──────────────────────────────────────────
 MEGA_CMD = None
 for path in [
     os.path.expandvars(r'%LOCALAPPDATA%\MEGAcmd\MEGAclient.exe'),
@@ -41,7 +42,6 @@ else:
 
 print()
 
-# ── Collect videos ──────────────────────────────────────────
 videos = sorted([
     f for f in os.listdir(INPUT_DIR)
     if f != '.gitkeep' and f.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm'))
@@ -89,7 +89,7 @@ for idx, f in enumerate(videos, 1):
         if part < total_slices:
             cmd += ['-t', str(SLICE_DURATION)]
         cmd += [
-            '-c', 'copy',                    # no re-encoding - 100% original quality
+            '-c', 'copy',
             '-avoid_negative_ts', 'make_zero',
             '-reset_timestamps', '1',
             '-movflags', '+faststart',
@@ -99,9 +99,7 @@ for idx, f in enumerate(videos, 1):
         print(f'\n[SLICE {part}/{total_slices}] start={start}s')
         print(f'Output: {os.path.basename(out_file)}')
         print('-' * 54)
-
         subprocess.run(cmd)
-
         print(f'[OK] Slice {part}/{total_slices} done!')
 
         if MEGA_CMD:

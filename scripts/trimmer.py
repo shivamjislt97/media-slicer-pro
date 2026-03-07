@@ -1,8 +1,12 @@
 import subprocess, os, sys
 
-FFMPEG = r'C:\Projects\media-slicer-pro\tools\ffmpeg.exe'
-INPUT_DIR = r'C:\Projects\media-slicer-pro\input'
-OUTPUT_DIR = r'C:\Projects\media-slicer-pro\output'
+# Auto detect project root based on script location
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(SCRIPT_DIR)
+
+FFMPEG = os.path.join(ROOT, 'tools', 'ffmpeg.exe')
+INPUT_DIR = os.path.join(ROOT, 'input')
+OUTPUT_DIR = os.path.join(ROOT, 'output')
 
 def parse_time(t):
     t = t.strip()
@@ -67,7 +71,7 @@ cmd = [
     '-ss', str(start_sec),
     '-i', video_path,
     '-t', str(duration),
-    '-c', 'copy',                    # no re-encoding
+    '-c', 'copy',
     '-avoid_negative_ts', 'make_zero',
     '-reset_timestamps', '1',
     '-movflags', '+faststart',
@@ -80,3 +84,4 @@ if os.path.exists(out_file):
     print(f'\n[OK] Clip saved: {out_file}')
 else:
     print('[ERROR] Trim failed.')
+input('Press Enter to exit...')

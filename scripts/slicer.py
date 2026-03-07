@@ -1,9 +1,11 @@
 import subprocess, os, math, sys
 
-FFMPEG = r'C:\Projects\media-slicer-pro\tools\ffmpeg.exe'
-FFPROBE = r'C:\Projects\media-slicer-pro\tools\ffprobe.exe'
-INPUT_DIR = r'C:\Projects\media-slicer-pro\input'
-OUTPUT_DIR = r'C:\Projects\media-slicer-pro\output'
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(SCRIPT_DIR)
+FFMPEG = os.path.join(ROOT, 'tools', 'ffmpeg.exe')
+FFPROBE = os.path.join(ROOT, 'tools', 'ffprobe.exe')
+INPUT_DIR = os.path.join(ROOT, 'input')
+OUTPUT_DIR = os.path.join(ROOT, 'output')
 
 SLICE_DURATION = int(sys.argv[1]) if len(sys.argv) > 1 else 449
 
@@ -63,9 +65,7 @@ for idx, f in enumerate(videos, 1):
         print(f'\n[SLICE {part}/{total_slices}] start={start}s')
         print(f'Output: {os.path.basename(out_file)}')
         print('-' * 54)
-
         subprocess.run(cmd)
-
         print(f'[OK] Slice {part}/{total_slices} done!')
 
     print(f'\n[DONE] {f} -> {total_slices} slices complete!')
