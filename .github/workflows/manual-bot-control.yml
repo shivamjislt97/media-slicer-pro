@@ -1,0 +1,58 @@
+name: Manual Bot Control
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Choose what to run"
+        required: true
+        default: "validate"
+        type: choice
+        options:
+          - validate
+          - deploy
+
+jobs:
+  validate:
+    if: ${{ inputs.task == 'validate' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compile bot
+        run: python -m py_compile bot/telegram_bot.py
+
+  deploy:
+    if: ${{ inputs.task == 'deploy' }}
+    runs-on: [self-hosted, windows]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create bot env file
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "bot")) {
+            New-Item -ItemType Directory -Path "bot" | Out-Null
+          }
+
+          @"
+          TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+          BOT_ALLOWED_USERS=${{ secrets.BOT_ALLOWED_USERS }}
+          BOT_DATA_DIR=${{ github.workspace }}
+          "@ | Set-Content -Path "bot/.bot.env" -NoNewline
+
+      - name: Deploy and start bot
+        shell: pwsh
+        run: ./scripts/deploy_bot.ps1
