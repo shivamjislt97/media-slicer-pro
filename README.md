@@ -178,6 +178,82 @@ cmd /c setup.bat
 
 ---
 
+## Telegram Bot (Button Based)
+
+Bot file: `bot/telegram_bot.py`
+
+### Bot Features (Easy Buttons)
+
+- Slice Video (quick duration buttons: 300s, 449s, 600s, custom)
+- Trim Clip (single range)
+- Custom Multi Slices (multiple ranges in one message)
+- Extract Audio (MP3/AAC, full or range)
+- Merge (reads clips from `merger\` folder)
+- Google Drive -> MEGA transfer
+- MEGA -> Google Drive transfer (requires `rclone` configured with `gdrive:` remote)
+- Status + Help + Cancel
+
+### Important Flow Rules
+
+- Video processing ke liye input **MEGA link only** hai (Telegram file upload allowed nahi hai)
+- Processing start se pehle bot MEGA credentials maangta hai: `email,password`
+- Google Drive -> MEGA transfer me bhi MEGA credentials first step hai
+- MEGA -> Google Drive transfer me MEGA credentials + Google Drive folder link/ID required hai
+
+### Local Run (Windows)
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+Copy-Item bot/.bot.env.example bot/.bot.env
+# bot/.bot.env me TELEGRAM_BOT_TOKEN set karo
+.\.venv\Scripts\python.exe bot/telegram_bot.py
+```
+
+### Required ENV
+
+`bot/.bot.env`:
+
+- `TELEGRAM_BOT_TOKEN` = BotFather token
+- `BOT_ALLOWED_USERS` = optional comma-separated numeric Telegram user IDs
+- `BOT_DATA_DIR` = optional custom root folder (default repo root)
+
+---
+
+## GitHub Actions Deploy (24/7 on self-hosted Windows runner)
+
+GitHub hosted runners 24/7 polling bot run ke liye suitable nahi hote, isliye self-hosted Windows runner use kiya gaya hai.
+
+### Workflows
+
+- `.github/workflows/bot-ci.yml`
+  - Bot syntax/compile validation
+- `.github/workflows/deploy-telegram-bot.yml`
+  - Main branch push ya manual run par deploy
+  - 30 min schedule par reconcile
+  - `scripts/deploy_bot.ps1` run karta hai
+
+### Runner Setup (one-time)
+
+1. Repository Settings > Actions > Runners > New self-hosted runner (Windows)
+2. Runner service mode me install karke always-on rakho
+3. Ensure machine reboot ke baad runner auto start ho
+
+### Required GitHub Secrets
+
+- `TELEGRAM_BOT_TOKEN`
+- `BOT_ALLOWED_USERS` (optional)
+
+### Deploy Mechanism
+
+- Workflow `bot/.bot.env` generate karta hai from secrets
+- `scripts/deploy_bot.ps1` dependencies install karta hai
+- Scheduled task `MediaSlicerProTelegramBot` register hota hai
+- Task startup par auto-run hoti hai, isse reboot ke baad bhi bot wapas aata hai
+
+---
+
 ## Version History
 
 ### v2.0.1 (current)

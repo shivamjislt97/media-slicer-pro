@@ -6,3 +6,11 @@ input/*.mp4
 input/*.mkv 
 input/*.avi 
 input/*.mov 
+
+# Python artifacts
+__pycache__/
+*.pyc
+.venv/
+
+# Telegram bot runtime env
+bot/.bot.env
