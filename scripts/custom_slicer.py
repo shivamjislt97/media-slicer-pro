@@ -1,8 +1,10 @@
-import subprocess, os, sys
+﻿import subprocess, os, sys
 
-FFMPEG = r'C:\Projects\media-slicer-pro\tools\ffmpeg.exe'
-INPUT_DIR = r'C:\Projects\media-slicer-pro\input'
-OUTPUT_DIR = r'C:\Projects\media-slicer-pro\output'
+SCRIPT_DIR = __import__('os').path.dirname(__import__('os').path.abspath(__file__))
+ROOT = __import__('os').path.dirname(SCRIPT_DIR)
+FFMPEG = __import__('os').path.join(ROOT, 'tools', 'ffmpeg.exe')
+INPUT_DIR = __import__('os').path.join(ROOT, 'input')
+OUTPUT_DIR = __import__('os').path.join(ROOT, 'output')
 
 def parse_time(t):
     t = t.strip()
@@ -36,6 +38,25 @@ if not os.path.exists(video_path):
     input('Press Enter to exit...')
     exit(1)
 
+probe = subprocess.run(
+    [
+        os.path.join(ROOT, 'tools', 'ffprobe.exe'),
+        '-v', 'error',
+        '-show_entries', 'format=duration',
+        '-of', 'default=noprint_wrappers=1:nokey=1',
+        video_path,
+    ],
+    capture_output=True,
+    text=True,
+)
+
+if probe.returncode != 0 or not probe.stdout.strip():
+    print('[ERROR] Unable to read video duration via ffprobe.')
+    input('Press Enter to exit...')
+    exit(1)
+
+video_duration = float(probe.stdout.strip())
+
 slices = []
 for ts in timestamp_args:
     ts = ts.strip()
@@ -48,10 +69,12 @@ for ts in timestamp_args:
     end = parse_time(parts[1])
     if end <= start:
         continue
+    if start < 0 or end > video_duration:
+        continue
     slices.append((start, end))
 
 if not slices:
-    print('[ERROR] No valid timestamps found.')
+    print(f'[ERROR] No valid timestamps found. Ensure ranges are within video duration ({video_duration:.2f}s).')
     input('Press Enter to exit...')
     exit(1)
 
@@ -84,12 +107,13 @@ for idx, (start, end) in enumerate(slices, 1):
         '-y', out_file
     ]
 
-    subprocess.run(cmd)
+    result = subprocess.run(cmd)
 
-    if os.path.exists(out_file):
+    if result.returncode == 0 and os.path.exists(out_file) and os.path.getsize(out_file) > 0:
         print(f'[OK] Saved: {out_filename}')
     else:
         print(f'[ERROR] Failed: {out_filename}')
 
 print()
 print(f'[DONE] {len(slices)} custom slices complete!')
+
